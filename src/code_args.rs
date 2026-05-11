@@ -70,7 +70,7 @@ pub fn run_task(task: &str, args: &str, pwd: &Path) -> anyhow::Result<Vec<Event<
         }
     };
 
-    if !args.contains("continue") {
+    if args.contains("new") {
         clear_context();
     }
 
