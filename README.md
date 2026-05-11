@@ -16,3 +16,5 @@ typst compile test.typ
 ```
 
 The `pre.typ` contains come prelude for the `typst` file to have a better rendering as well as syntax highlighting for `nadi` syntax.
+
+You can find the generated [`test.typ`](./test.typ) file as well as compiled [`test.pdf`](./test.pdf) file in this repo, along with the source code [`test.md`](./test.md)

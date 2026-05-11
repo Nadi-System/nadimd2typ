@@ -181,8 +181,6 @@ pub fn run_table(table: &str, args: &str, pwd: &Path) -> anyhow::Result<Vec<Even
     let tokens = get_tokens(&tasks);
     let tasks = tasks::parse(tokens)?;
 
-    clear_context();
-
     let mut response = String::new();
     for task in tasks {
         // since we can't have anything else print on mdbook
