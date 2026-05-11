@@ -1,5 +1,7 @@
 use anyhow::Context;
+use clap::Parser;
 use pulldown_cmark::{Alignment, CodeBlockKind, CowStr, Event, HeadingLevel, Tag, TagEnd};
+use pulldown_cmark_to_cmark::cmark;
 use std::fs::File;
 use std::io::{BufWriter, Write};
 use std::path::{Path, PathBuf};
@@ -10,38 +12,54 @@ mod output;
 
 use code_args::*;
 
-fn main() -> anyhow::Result<()> {
-    let args: Vec<String> = std::env::args().collect();
-    let inp_file = match &args[1..] {
-        [] => {
-            println!("Usage: {} <input_file.md> <output_file.typ>", args[0]);
-            return Ok(());
-        }
-        [help] if (help == "--help" || help == "-h") => {
-            println!("Usage: {} <input_file.md> <output_file.typ>", args[0]);
-            return Ok(());
-        }
-        [inp] => inp,
-        _ => return Err(anyhow::Error::msg("incorrect arguments, use --help")),
-    };
-    let inp = PathBuf::from(inp_file);
-    let out = inp.with_extension("typ");
+#[derive(Parser)]
+struct CliArgs {
+    // requires output so that we don't have to make a filename
+    /// Output a markdown file instead of typst
+    #[arg(short, long, requires = "output")]
+    markdown: bool,
+    /// prelude to include in typst file
+    #[arg(short, long)]
+    prelude: Option<PathBuf>,
+    /// Output file to write, if not writes a file with .typ extension
+    #[arg(short, long)]
+    output: Option<PathBuf>,
+    /// Input markdown file
+    input: PathBuf,
+}
 
-    eprintln!("Reading: {inp:?}");
-    let content = std::fs::read_to_string(&inp)?;
-    eprintln!("Processing Nadi Tasks");
+fn main() -> anyhow::Result<()> {
+    let cli = CliArgs::parse();
+
+    let content = std::fs::read_to_string(&cli.input)?;
     let events = process_nadi_tasks(
         &content,
-        &inp.parent().context("Can not determine parent path")?,
+        &cli.input
+            .parent()
+            .context("Can not determine parent path")?,
     )?;
-    eprintln!("Creating output file: {out:?}");
+
+    let out = cli.output.unwrap_or_else(|| {
+        if cli.markdown {
+            // Clap will make sure this is not called, but writing
+            // this code here just in case
+            cli.input.with_file_name("output.md")
+        } else {
+            cli.input.with_extension("typ")
+        }
+    });
     let file = std::fs::File::create(out)?;
     let mut writer = std::io::BufWriter::new(file);
-    eprintln!("Writing Typst");
-
-    write!(writer, "");
-    write_typst(&mut writer, events)?;
-    eprintln!("Complete");
+    if let Some(p) = &cli.prelude {
+        writeln!(writer, "{}", std::fs::read_to_string(p)?)?;
+    }
+    if cli.markdown {
+        let mut buf = String::new();
+        cmark(events.into_iter(), &mut buf)?;
+        writeln!(writer, "{}", buf)?;
+    } else {
+        write_typst(&mut writer, events)?;
+    }
     Ok(())
 }
 

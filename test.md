@@ -7,13 +7,11 @@ You can write nadi codes here in code blocks and it will run it, and show the re
 ```task run
 net.load_str("a -> b")
 nodes.NAME
-echo("testing")
+echo("testing it")
 ```
 
 
 Values:
-```task
+```task run
 1 + 1
 ```
-
-Where are the results?
