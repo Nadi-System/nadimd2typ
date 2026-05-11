@@ -34,7 +34,7 @@ fn main() -> anyhow::Result<()> {
     let content = std::fs::read_to_string(&cli.input)?;
     let events = process_nadi_tasks(
         &content,
-        &cli.input
+        cli.input
             .parent()
             .context("Can not determine parent path")?,
     )?;
@@ -63,7 +63,7 @@ fn main() -> anyhow::Result<()> {
     Ok(())
 }
 
-pub fn process_nadi_tasks<'a, 'b>(chap: &'a str, pwd: &'b Path) -> anyhow::Result<Vec<Event<'a>>> {
+pub fn process_nadi_tasks<'a>(chap: &'a str, pwd: &Path) -> anyhow::Result<Vec<Event<'a>>> {
     enum State {
         None,
         Open,
@@ -158,7 +158,7 @@ pub fn write_typst(writer: &mut BufWriter<File>, events: Vec<Event>) -> anyhow::
                 }
             }
             Event::Html(_) => return Err(anyhow::Error::msg("HTML block not supported")),
-            Event::SoftBreak => write!(writer, "\n")?,
+            Event::SoftBreak => writeln!(writer)?,
             Event::HardBreak => write!(writer, "\n\n")?,
             // it makes four empty line, but overkill better than incorrect
             Event::Start(Tag::Paragraph) => {
@@ -189,7 +189,7 @@ pub fn write_typst(writer: &mut BufWriter<File>, events: Vec<Event>) -> anyhow::
             }
             Event::End(TagEnd::Link) => {
                 if let Some(table) = &mut table {
-                    table.thiscell.push_str("]");
+                    table.thiscell.push(']');
                 } else {
                     write!(writer, "]")?;
                 }
@@ -230,7 +230,7 @@ pub fn write_typst(writer: &mut BufWriter<File>, events: Vec<Event>) -> anyhow::
                 write!(
                     writer,
                     "\n{} ",
-                    std::iter::repeat("=").take(hl).collect::<String>(),
+                    std::iter::repeat_n("=", hl).collect::<String>(),
                 )?;
             }
             Event::End(TagEnd::Heading(_)) => {
@@ -245,17 +245,18 @@ pub fn write_typst(writer: &mut BufWriter<File>, events: Vec<Event>) -> anyhow::
                 writeln!(writer, "])")?;
             }
             Event::Start(Tag::Table(al)) => {
-                let mut tab = MdTable::default();
-                tab.aligns = al
-                    .into_iter()
-                    .map(|a| match a {
-                        Alignment::None => "none",
-                        Alignment::Left => "left",
-                        Alignment::Right => "right",
-                        Alignment::Center => "center",
-                    })
-                    .collect();
-                table = Some(tab);
+                table = Some(MdTable {
+                    aligns: al
+                        .into_iter()
+                        .map(|a| match a {
+                            Alignment::None => "none",
+                            Alignment::Left => "left",
+                            Alignment::Right => "right",
+                            Alignment::Center => "center",
+                        })
+                        .collect(),
+                    ..Default::default()
+                });
             }
             Event::Start(Tag::TableHead) => {
                 if let Some(table) = &mut table {
